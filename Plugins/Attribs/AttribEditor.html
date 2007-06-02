@@ -1,0 +1,529 @@
+<!-- Copyright (c) 2007 Google  Inc. -->
+
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="tabs.css" />
+<style type="text/css">
+    .poptogg {
+        visibility:hidden;
+    }
+    .popback {
+        position:absolute;
+        left:0px;
+        top:0px;
+        width:110%;
+        height:100%;
+        background:#DDDDDD;
+        filter:alpha(opacity=60);
+        opacity:.60;
+        z-index:10000;
+    }
+    .popstyle {
+        position:absolute;
+        left:25%;
+        top:25%;
+        border:1px solid #000;
+        padding:15px;
+        text-align:left;
+        width:300px;
+        height:125px;
+        background:#ffffff;
+        z-index:10000;
+    }
+</style>
+    
+<script type="text/javascript" src="tabs.js"></script>
+<script src="json.js"></script>
+
+<script>
+var AttribHtml = {}
+var darkBG = "#DDDDDD";
+var lightBG = "#F0F0F0";    
+var tm; // the tab manager
+var g_theData = null;
+var ie  = document.all
+var ns6 = document.getElementById&&!document.all
+var isMenu  = false ;
+var menuSelObj = null ;
+var overpopupmenu = false;
+
+function newTab(name) {
+    var tab = new Tab(name);
+    tab.onPostDestroy = function() { clearContentsIfEmpty(); }
+    return tab;
+}
+
+function createContentsTable() {
+    var dict_table = document.createElement("TABLE");
+    dict_table.width="100%"
+    dict_table.cellspacing=dict_table.cellpadding=0;
+
+    var indx = dict_table.rows.length;
+    var dict_table_row = dict_table.insertRow(indx);
+
+    var name_cell  = dict_table_row.insertCell(dict_table_row.cells.length);
+    name_cell.background="MiddleOnB.png"
+    name_cell.width="25%";
+    name_cell.style.borderWidth="1px";
+    name_cell.style.borderStyle = "solid"
+    name_cell.style.borderColor = "#97acd4"
+    name_cell.style.borderBottomWidth= "0px"
+    name_cell.innerHTML = "<b>Name</b>"
+
+    var value_cell = dict_table_row.insertCell(dict_table_row.cells.length);
+    value_cell.background="MiddleOnB.png"
+    value_cell.width="75%";
+    value_cell.style.borderWidth="1px";
+    value_cell.style.borderStyle = "solid"
+    value_cell.style.borderColor = "#97acd4"
+    value_cell.style.borderBottomWidth= "0px"
+    value_cell.innerHTML = "<b>Value</b>"
+    value_cell.colSpan = 2
+    return dict_table;
+}
+
+function initJson(json, reuse) {
+    json = json.replace(/#COMMA#/g,",");
+    eval("var metadata = " + json);
+    if(arguments.length == 1 || !reuse) {
+        tm = new TabManager(__gel("tabs_div"));
+        tm.setAddTabText("Add Category...");
+        tm.setAddTabCallback(onTabAdded);
+    }
+    for(var i=0; i<metadata.dictionaries.length; i++) {
+        var dict = metadata.dictionaries[i];
+        if(dict != null) {
+            var dictName = dict.name
+            var tab = newTab(dictName);
+
+            
+            var dict_table = createContentsTable();
+            // now all the info below it
+            for(var j=0; j<dict.attributes.length; j++) {
+                var attrib = dict.attributes[j];
+                if(attrib != null) {
+                    appendRow(dict_table, attrib.name, attrib.value);
+                }
+            }
+            __gel("add_field").style.display="";
+            __gel("del_tab").style.display="";
+            
+            AttribHtml[dictName] = dict_table;
+            tab.setEditable(false);
+            tab.onOpened = function() { 
+                if(null != getContentsObject()) {
+                    __gel("tab_contents").removeChild(getContentsObject());
+                }
+                __gel("tab_contents").appendChild(AttribHtml[this.name]); 
+            }
+            tm.addTab(tab);
+        }
+    }
+    if(0==metadata.dictionaries.length) {
+        clearContentsIfEmpty();
+    }
+    tm.show();
+
+}
+
+function createStandardCategories() {
+    window.location='skp:create_standard_categories';
+}    
+
+function getFormattedValue(attribValue) {
+    var value = __hesc(attribValue);
+    // trim it if we must
+    var maxSize = 75;
+    if(value.length > maxSize) {
+        value = value.slice(0,maxSize) + "...";
+    }
+    if(0 == value.indexOf("http://")) {
+        return "<a target='_blank' href='" + __hesc(attribValue) +"'>" + value.substr(7) + "</a>";
+    } else if(0 == value.indexOf("mailto://")) {
+        return "<a target='_blank' href='" + __hesc(attribValue) +"'>" + value.substr(9) + "</a>";        
+    } else {
+        return value;
+    }
+}
+
+function appendRow(dict_table, name, value) {
+    var indx = dict_table.rows.length;
+    var dict_table_row = dict_table.insertRow(indx);
+    dict_table_row.style.backgroundColor = indx % 2 ? darkBG : lightBG;
+    
+    var name_cell  = dict_table_row.insertCell(dict_table_row.cells.length);
+    name_cell.width="25%";
+    
+    var value_cell = dict_table_row.insertCell(dict_table_row.cells.length);
+    value_cell.width="75%";
+
+    var edit_cell = dict_table_row.insertCell(dict_table_row.cells.length);
+
+    addRowElements(dict_table_row, indx, name, getFormattedValue(value), value);
+    return;
+}
+
+function DataObj(name, value, rawValue) {
+    this["name"] = name;
+    this["value"] = value;
+    this["rawValue"] = rawValue;
+}
+    
+function addRowElements(row, indx, name, value, rawValue) {
+    row.cells[0].innerHTML = name;
+    row.cells[0].ondblclick = function() {
+        var contentTable = getContentsObject();
+        var name  = contentTable.rows[indx].cells[0].innerHTML;
+        var value = contentTable.rows[indx].cells[1].innerHTML;
+        var rawValue = contentTable.rows[indx].cells[1]["rawValue"]
+        g_theData = new DataObj(name,value,rawValue);
+        editEntry();
+        }
+    
+    row.cells[1].innerHTML = value;
+    row.cells[1]["rawValue"] = rawValue;
+    row.cells[1].ondblclick = function() {
+        var contentTable = getContentsObject();
+        var name  = contentTable.rows[indx].cells[0].innerHTML;
+        var value = contentTable.rows[indx].cells[1].innerHTML;
+        var rawValue = contentTable.rows[indx].cells[1]["rawValue"]
+        g_theData = new DataObj(name,value,rawValue);
+        editEntry();
+        }
+    row.cells[2].innerHTML = "<span class='link'"+
+                          "onclick='showEdit(this,"+indx+")'><img src='btn_menu_gray.gif'></span>";
+}
+
+function showEdit(el, indx) {
+    pos = findPos(el);
+    var contentTable = getContentsObject();
+    var name  = contentTable.rows[indx].cells[0].innerHTML;
+    var value = contentTable.rows[indx].cells[1].innerHTML;
+    var rawValue = contentTable.rows[indx].cells[1]["rawValue"]
+    g_theData = new DataObj(name,value,rawValue);
+    __gel('menudiv').style.left = pos[0]+document.body.scrollLeft-75;
+    __gel('menudiv').style.top = pos[1]+document.body.scrollTop;
+    __gel('menudiv').style.display = "";
+    isMenu = true;
+}
+
+function addField() {
+    clearPopupMenu();
+    __gel("acceptEdits").onclick=doAcceptFieldAdds;
+    o2(false);
+    __gel("theNameField").select();
+}
+
+function doAcceptFieldAdds() {
+
+    name = __gel("theNameField").value;
+    if(name == "") {
+        alert('name cannot be empty!');
+        return;
+    }
+    
+    // check for duplicates
+    var contentTable = getContentsObject();
+//    for(var i=0; i<contentTable.rows.length; i++) {
+    for(var i=1; i<contentTable.rows.length; i++) {
+        usedName = contentTable.rows[i].cells[0].innerHTML;
+        if(usedName == name) {
+            alert('name must be unique!');
+            return;
+        }
+    }
+    
+    // now add it
+    appendRow(contentTable, 
+              __gel("theNameField").value, 
+              __gel("theValueField").value);
+    
+    // use the raw name/value 
+    var o = new Object;
+    o.dict_name = tm.getSelectedTab().name;    
+    o.attrib_name = __gel("theNameField").value;
+    o.attrib_value = __gel("theValueField").value;    
+    window.location="skp:on_add_attribute@" + o.toJSONString().replace(/'/g,"\\'");
+    o2(true);    
+}
+
+
+function editEntry() {
+    clearPopupMenu();
+    __gel("acceptEdits").onclick=doAcceptFieldEdits;
+    
+    if(__gel("theNameField")) __gel("theNameField").value = g_theData.name;
+    if(__gel("theValueField")) __gel("theValueField").value = g_theData.rawValue;
+    o2(false);    
+    __gel("theValueField").select();
+}
+
+function doAcceptFieldEdits() {
+    var rawValue = __gel("theValueField").value
+    var value = getFormattedValue(rawValue);
+    var name = __gel("theNameField").value;
+    
+    var contentTable = getContentsObject();
+//    for(var i=0; i<contentTable.rows.length; i++) {
+    for(var i=1; i<contentTable.rows.length; i++) {
+        usedName = contentTable.rows[i].cells[0].innerHTML;
+        if(g_theData.name == usedName) { 
+            // this is the one to edit!
+            var value =getFormattedValue(rawValue);
+            addRowElements(contentTable.rows[i],i,name, value, rawValue);
+            break;
+        }
+    }
+    var o = new Object;
+    o.dict_name = tm.getSelectedTab().name;
+    o.attrib_name = __gel("theNameField").value;
+    o.attrib_value = __gel("theValueField").value;
+    window.location="skp:on_edit_attribute@" + o.toJSONString().replace(/'/g,"\\'");
+    o2(true);    
+}
+
+function deleteEntry() {
+    clearPopupMenu();
+    if(confirm("Are you sure you want to delete \"" + g_theData.name + "\"?")) {
+        // find the index of this entry
+        var theIndx = -1;
+//        for(var i=0; i<getContentsObject().rows.length && theIndx == -1; i++) {
+        for(var i=1; i<getContentsObject().rows.length && theIndx == -1; i++) {
+            if(getContentsObject().rows[i].cells[0].innerHTML == g_theData.name) {
+                theIndx = i;
+            }
+        }
+        if(theIndx != -1) {
+            var table = getContentsObject();
+
+            table.deleteRow(theIndx);
+            //for(var i=0; i<table.rows.length; i++) {
+            for(var i=1; i<table.rows.length; i++) {
+                table.rows[i].style.backgroundColor = i % 2 ? darkBG : lightBG;
+                // Need to fix up all the onclick commands that refer to indx
+                table.rows[i].cells[2].innerHTML = "<span class='link'"+
+                      "onclick='showEdit(this,"+i+")'><img src='btn_menu_gray.gif'></span>";
+            }
+            // reformat all the background colors for each remaining row.
+            var o = new Object;
+            o.dict_name = tm.getSelectedTab().name;
+            o.attrib_name = g_theData.name;
+            str = "skp:on_delete_attribute@" + o.toJSONString();
+            window.location=str;
+        }
+    }
+}
+
+function delTab() {
+    var dictName = tm.getSelectedTab().name;
+    if(confirm("Are you sure you want to delete the dictionary \"" + dictName +"\"?")) {
+        tm.eraseTab(tm.getSelectedTab());
+        window.location="skp:on_delete_dictionary@" + dictName;
+    }
+}
+
+function clearPopupMenu() {
+    isMenu = false ;
+    overpopupmenu = false;
+    if(__gel("theNameField")) __gel("theNameField").value = "";
+    if(__gel("theValueField")) __gel("theValueField").value = "";
+    __gel('menudiv').style.display = "none" ;
+}
+
+// this is only called when a new tab is created
+function onNameChanged(tab, newName) {
+    // check to see that this name is unique.
+    for(var i=0; i<tm.getTabCount()-1; i++) {
+        if(tm.item(i).name == newName) {
+            alert("Tab name was not unique");
+            return false;
+        }
+    }
+    tab.name = newName;
+    // Clear the contents, replace with empty table.
+    if(null != getContentsObject()) {
+        __gel("tab_contents").removeChild(getContentsObject());
+    }
+
+    var dict_table = createContentsTable();
+
+    // associate the tab name with the emtpy table
+    AttribHtml[newName] = dict_table;
+    // reset the onOpened function to do the right thing
+    tab.onOpened = function() { 
+        if(null != getContentsObject()) {
+            __gel("tab_contents").removeChild(getContentsObject());
+        }
+        __gel("tab_contents").appendChild(AttribHtml[this.name]); 
+    }
+    tab.onOpened();
+    tab.setEditable(false);
+    tab.onNameChanged = function() { window.location = "skp:on_add_dictionary@" + newName; }
+    return true;
+}
+
+function onTabAdded(tm) {
+    var tab = tm.defaultAddNewTab();
+    tab.onOpened = function() {
+        if(null != getContentsObject()) {
+            __gel("tab_contents").removeChild(getContentsObject());
+        }
+        span = document.createElement("SPAN");
+        span.innerHTML = "Type the name of your new category.<br><br>Note:</b> The name must be <em>unique</em>";
+        __gel("tab_contents").appendChild(span); 
+        }
+    tab.onOpened();
+    tab.onChangeNameRequest = function(name) { return onNameChanged(this, name); }
+    __gel("add_field").style.display="";
+    __gel("del_tab").style.display="";
+    
+    tab.onPostDestroy = function() { clearContentsIfEmpty(); }
+}
+
+function clearContentsIfEmpty() {
+    if(tm.getTabCount() == 0) {
+        __gel("add_field").style.display="none";
+        __gel("del_tab").style.display="none";
+        if(null != getContentsObject()) {
+            __gel("tab_contents").removeChild(getContentsObject());
+        }
+        // show some help text
+        var contents = document.createElement("DIV");
+        contents.innerHTML = "You can create/delete categories of Attributes and " + 
+            "add/edit and delete individual attributes within a category.<p>" + 
+            "To get started, click on the <em>"+
+            "Add Category...</em> link above."+
+            "<p><b>Tip:</b> You can create standard categories by clicking " +
+            "<span onclick='createStandardCategories()' class='link'>here</span>."
+        __gel("tab_contents").appendChild(contents);
+    }
+}
+function getContentsObject() {
+    return __gel("tab_contents").childNodes[0];
+}
+
+function o2(hidePopup) {
+	el = __gel("editDiv");
+    if(hidePopup) { // hiding the dialog
+        el.style.visibility = "hidden";
+    } else {
+        el.style.visibility = "visible";
+        __gel("theNameField").focus();
+    }
+}
+
+
+function findPos(obj) {
+	var curleft = curtop = 0;
+	if (obj.offsetParent) {
+		curleft = obj.offsetLeft
+		curtop = obj.offsetTop
+		while (obj = obj.offsetParent) {
+			curleft += obj.offsetLeft
+			curtop += obj.offsetTop
+		}
+	}
+	return [curleft,curtop];
+}
+
+
+function mouseSelect(e)
+{
+  var obj = ns6 ? e.target.parentNode : event.srcElement.parentElement;
+  if( isMenu )
+  {
+    if( overpopupmenu == false )
+    {
+      isMenu = false ;
+      overpopupmenu = false;
+      __gel('menudiv').style.display = "none" ;
+      return true ;
+    }
+    return true ;
+  }
+  return false;
+}
+document.onmousedown  = mouseSelect;
+
+function doKeyUp(e) {
+    if(event.keyCode == 27) {
+        window.location="skp:on_close"
+    }
+}
+</script>
+</head>
+<body onkeyup="doKeyUp()">
+    <div id="editDiv" class="poptogg">
+        <div id="popbackground" class="popback" onclick="o2(true)" ></div>
+        <div id="editDialog" class="popstyle">
+          <table>
+            <tr>
+              <td>Name:</td>
+              <td><input id="theNameField" type="text" width="100%"></td>
+            </tr>
+            <tr>
+              <td>Value:</td>
+              <td><textarea style="font-family:courier" id="theValueField" cols="30" rows="5"></textarea></td>
+            </tr>
+            <tr>
+              <td colspan="2">
+                  <input id="acceptEdits" type="button" value="OK" width="40">
+                  <input type="button" value="Cancel" width="40" onclick="o2(true)">
+              </td>
+            </tr>
+          </table>
+        </div>
+    </div>
+
+    <div id="menudiv" 
+        style="position:absolute; display:none; top:0px; left:0px;z-index:10000;" 
+        onmouseover="javascript:overpopupmenu=true;" onmouseout="javascript:overpopupmenu=false;">
+        <table width=70 cellspacing=0 cellpadding=0  style="border:1px solid #000;">
+          <tr><td>
+            <table width=68 cellspacing=0 cellpadding=0>
+              <tr>
+                <td id="item1" onclick="editEntry()" bgcolor="#FFFFFF" width="80" height="16" 
+                    onMouseOver="this.style.backgroundColor='#EFEFEF'" onMouseOut="this.style.backgroundColor='#FFFFFF'">  
+                    <span class='link'>Edit</span></td>
+              </tr>
+              <tr>
+                <td id="item2" onclick="deleteEntry()" bgcolor="#FFFFFF" width="80" height="16" 
+                    onMouseOver="this.style.backgroundColor='#EFEFEF'" onMouseOut="this.style.backgroundColor='#FFFFFF'">  
+                    <span class='link' >Delete</span></td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+    </div>
+
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr valign="top" height="30px">
+        <td valign="top">
+          <div id="tabs_div"></div>
+        </td>
+      </tr>
+      <tr valign="top">
+        <td>
+          <div id="tab_contents"></div>
+        </td>
+      </tr>
+    </table>
+    <span id="add_field" style="z-index:1;display:none;position:absolute;bottom:10px; left:15px" class='link'
+          onclick="addField()">
+          <img src='btn_add.gif'> Add an attribute
+    </span>
+    <span id="del_tab" style="z-index:1;display:none;position:absolute;bottom:10px; left:130px" 
+          onclick="delTab()">
+          <img height="14" width="14" src='Erase.png'> <span class='link'>Delete Category</span>
+    </span>
+    <span id="close" style="z-index:1;;position:absolute;bottom:10px; right:70px" class='link'
+          onclick="window.location='skp:on_cancel'">
+          Cancel
+    </span>
+    <span id="close" style="z-index:1;;position:absolute;bottom:10px; right:25px" class='link'
+          onclick="window.location='skp:on_accept'">
+          Accept
+    </span>
+    </body>
+</html>

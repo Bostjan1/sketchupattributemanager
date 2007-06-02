@@ -1,0 +1,94 @@
+/* Copyright (c) 2007 Google  Inc. */
+
+.tab {
+    padding:0px 15px 0px 15px;  
+    font-size:82%;
+    text-align:center;
+    text-decoration:none;
+    color:#676767;
+    cursor:pointer;
+    cursor:hand;
+    empty-cells:show;
+}
+
+.selectedtab {
+    border:1px solid #97acd4;
+    color:#3366cc;
+    border-bottom:0px;
+    padding-bottom:1px;
+    color:#3366cc;
+    font-weight:bold;
+}
+
+form {display:inline;}
+body,td,a,p,.h{font-family:arial,sans-serif;}
+a:link {color:#0000cc; }
+a:visited { color:#551a8b; }
+a:active { color:#ff0000; }
+a.ab{color: #0000cc;}
+.q{color:#00c;}
+a.q {color:#00c; }
+
+.unselectedtab {
+    border:1px solid #97acd4;
+    background-color:#e5ecf9;
+    color:#000000;
+    border-bottom-color:#97acd4;
+}
+
+.bottom_selectedtab {
+    border:1px solid #97acd4;
+    color:#3366cc;
+    border-top:0px;
+    padding-top:1px;
+    color:#3366cc;
+    font-weight:bold;
+}
+
+.bottom_unselectedtab {
+    border:1px solid #97acd4;
+    background-color:#e5ecf9;
+    color:#000000;
+    border-top-color:#97acd4;
+}
+
+
+.edittab {
+    padding-right:2px;
+    padding-left:2px;
+}
+
+.tabspacer {
+    width:4px;
+    border-bottom:1px solid #97acd4;
+}
+
+.bottom_tabspacer {
+    width:4px;
+    border-top:1px solid #97acd4;
+}
+
+.attribtable {
+    width:150px;
+}
+
+
+.tablink {
+    padding:2px 2px 2px 7px;
+    border-bottom:1px solid #97acd4;
+    font-size:83%;
+}
+
+.bottom_tablink {
+    padding:2px 2px 2px 7px;
+    border-top:1px solid #97acd4;
+    font-size:83%;
+}
+
+.link {
+    font-size:82%;
+    color:#676767;
+    cursor:pointer;
+    cursor:hand;
+    text-decoration:underline;
+}
