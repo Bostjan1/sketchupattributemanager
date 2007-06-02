@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#summary Welcome to the SketchUp Attribute Manager project.
 #labels Phase-Design,Featured
 
 = Welcome! =
@@ -9,7 +9,6 @@ This is a wiki to discuss how we can improve this little application for viewing
 = Ideas =
 
   * *Customizable* *Category* *Viewer*  Wouldn't it be great if you could write your own "renderer" for a particular category?  For example, if you knew that the "ApplicanceInfo" category held a URL of an image in the "image_link" attribute, then you could render that page specially by fetching the image and loading it into the page.
-
 
 
 
