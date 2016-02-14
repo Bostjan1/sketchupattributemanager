@@ -1,0 +1,12 @@
+# Welcome! #
+
+This is a wiki to discuss how we can improve this little application for viewing and editing attributes in SketchUp.
+
+
+# Ideas #
+
+  * **Customizable** **Category** **Viewer**  Wouldn't it be great if you could write your own "renderer" for a particular category?  For example, if you knew that the "ApplicanceInfo" category held a URL of an image in the "image\_link" attribute, then you could render that page specially by fetching the image and loading it into the page.
+
+
+
+
